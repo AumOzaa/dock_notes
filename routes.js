@@ -67,9 +67,6 @@ app.post("/api/user/signup", async (req, res) => {
             });
         }
 
-        return res.status(200).json({
-            "message": user
-        });
     } catch (error) {
         if (error instanceof z.ZodError) {
             logger.warn("Signup validation incorrect", {
@@ -186,7 +183,7 @@ app.post("/api/user/createtask", async (req, res) => {
         // Now creating the task
         const validateData = taskCreation.parse(req.body);
         logger.info("User Data Validated Successfully", {
-            "taksName": validateData.taskName
+            "taksName": validateData.taskName,
         });
 
         logger.info("Querying the dataabse for task creation");
@@ -195,7 +192,8 @@ app.post("/api/user/createtask", async (req, res) => {
         logger.info("Task Created Successfully");
 
         return res.json({
-            "task": validateData.taksName,
+            "task": validateData.taskName,
+            "taskId": response.rows[0].id,
             "message": "Task created succesfully"
         });
 
@@ -206,6 +204,129 @@ app.post("/api/user/createtask", async (req, res) => {
 
         res.json({
             "msg": "Something was wrong"
+        });
+    }
+});
+
+app.delete("/api/user/del/task/:id", async (req, res) => {
+    logger.info("DELETE /api/user/del/task/:id");
+
+    try {
+        logger.info("Parsing the token");
+        const token = req.headers['authorization'].split(' ')[1];
+        logger.info("JWT Token parsed");
+
+        // Decoding the payload
+        const decoded_payload = jwt.verify(token, process.env.JWT_SECRET);
+
+        logger.info("Payload decoded Successfuly " + JSON.stringify(decoded_payload));
+
+        // fetching the task
+        const delId = req.params.id;
+
+        logger.info("Task Id to delete " + delId);
+
+        const response = await pool.query("DELETE FROM tasks WHERE id = $1 AND user_id = $2 RETURNING *", [delId, decoded_payload.userID]);
+
+        if (response.rows.length === 0) {
+            return res.status(404).json({
+                message: "Task not found"
+            });
+        }
+
+        logger.info("TASK DELETED SUCCESFULLY");
+        res.status(204).json({
+            "tasks": response.rows[0],
+            "message": "Task delete successfully"
+        });
+
+    } catch (error) {
+
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                message: "Validation error",
+                errors: error.issues
+            });
+        }
+
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({
+                message: "Token expired"
+            });
+        }
+
+        if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({
+                message: "Invalid token"
+            });
+        }
+
+        if (error.name === "NotBeforeError") {
+            return res.status(401).json({
+                message: "Token not active"
+            });
+        }
+
+        logger.error("Unknown error", {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
+
+        return res.status(500).json({
+            message: "Internal server error"
+        });
+    }
+});
+
+app.get("/api/user/tasks", async (req, res) => {
+    logger.info("GET /api/user/tasks");
+
+    try {
+        logger.info("Parsing the token");
+        const token = req.headers['authorization'].split(' ')[1];
+        logger.info("JWT Token parsed");
+
+        // Decoding the payload
+        const decoded_payload = jwt.verify(token, process.env.JWT_SECRET);
+
+        logger.info("Payload decoded Successfuly " + JSON.stringify(decoded_payload));
+
+        const result = await pool.query("SELECT * FROM tasks where user_id = $1", [decoded_payload.userID]);
+
+        logger.info("Queried the database");
+
+        res.status(200).json({
+            "result": result.rows,
+            "message": "Derived Succesfully"
+        });
+    } catch (error) {
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({
+                message: "Token expired"
+            });
+        }
+
+        if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({
+                message: "Invalid token"
+            });
+        }
+
+        if (error.name === "NotBeforeError") {
+            return res.status(401).json({
+                message: "Token not active"
+            });
+        }
+
+        logger.error("Unknown error", {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
+
+        return res.status(500).json({
+            message: "Internal server error"
         });
     }
 });
