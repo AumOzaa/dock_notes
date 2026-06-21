@@ -29,3 +29,12 @@ jobs:
     - run: npm ci
     - run: npm run build --if-present
     # - run: npm test
+
+    - name: Build and push Docker Image
+      uses: mr-smithers-excellent/docker-build-push@v5
+      with:
+        image: aumozaa/dock_notes
+        registry: docker.io
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
