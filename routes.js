@@ -482,6 +482,74 @@ app.post("/api/user/dayAnalytics", async (req, res) => {
     }
 });
 
-app.listen(3000, () => {
+app.get("/api/user/timeSinceStart", async (req, res) => {
+    logger.info("GET /api/user/timeSinceStart");
+
+    try {
+        logger.info("Parsing the token");
+        const token = req.headers['authorization'].split(' ')[1];
+        logger.info("JWT Token parsed");
+
+        // Decoding the payload
+        const decoded_payload = jwt.verify(token, process.env.JWT_SECRET);
+
+        logger.info("Payload decoded Successfuly " + JSON.stringify(decoded_payload));
+
+
+        const response = await pool.query(
+            `SELECT
+                task_sessions.start_time,
+                FLOOR(EXTRACT(EPOCH FROM (NOW() - task_sessions.start_time)))::integer AS elapsed_seconds,
+                TO_CHAR(
+                    NOW() AT TIME ZONE 'UTC',
+                    'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+                ) AS server_time_utc
+            FROM task_sessions
+            JOIN tasks ON task_sessions.task_id = tasks.id
+            WHERE task_sessions.end_time IS NULL
+                AND task_sessions.user_id = $1
+                AND tasks.user_id = $1
+            ORDER BY task_sessions.start_time DESC
+            LIMIT 1`,
+            [decoded_payload.userID]
+        );
+
+        logger.info("Got the start time of the tasks if any");
+
+        res.status(200).json({
+            "toStartTime": response.rows[0] || null
+        });
+    } catch (error) {
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({
+                message: "Token expired"
+            });
+        }
+
+        if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({
+                message: "Invalid token"
+            });
+        }
+
+        if (error.name === "NotBeforeError") {
+            return res.status(401).json({
+                message: "Token not active"
+            });
+        }
+
+        logger.error("Unknown error", {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
+
+        return res.status(500).json({
+            message: "Internal server error"
+        });
+    }
+});
+
+app.listen(3000, "0.0.0.0", () => {
     logger.info("SERVER RUNNING ON http://localhost:3000");
 });

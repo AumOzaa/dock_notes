@@ -194,14 +194,22 @@ function Dashboard({ username, onLogout }) {
 
   const loadData = useCallback(async () => {
     try {
-      const [taskData, analyticsData] = await Promise.all([
+      const [taskData, analyticsData, timeSinceStartData] = await Promise.all([
         api.getTasks(),
         api.getAnalytics(),
+        api.getTimeSinceStart(),
       ]);
-      setTasks(taskData.result || []);
+      const loadedTasks = taskData.result || [];
+      setTasks(loadedTasks);
       setAnalytics(analyticsData.result || []);
-      if ((taskData.result || []).some((task) => task.is_active)) {
-        setStartedAt(Date.now());
+
+      if (loadedTasks.some((task) => task.is_active)) {
+        const elapsedSeconds = Math.max(
+          0,
+          Number(timeSinceStartData.toStartTime?.elapsed_seconds) || 0,
+        );
+
+        setStartedAt(Date.now() - elapsedSeconds * 1000);
       }
     } catch (err) {
       if (err.status === 401) onLogout();
