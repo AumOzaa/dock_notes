@@ -7,14 +7,47 @@ import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import jwt from "jsonwebtoken"
 import cors from "cors";
+import { Server } from "socket.io";
+import http from "http";
+import { Socket } from "net";
 
 dotenv.config();
 const salt = parseInt(process.env.SALT_ROUNDS);
 
 const app = express();
-app.use(cors());
+const server = http.createServer(app);
+
+app.use(cors({
+    origin: "*"
+}));
 app.use(express.json());
 
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
+io.on("connection", (socket) => {
+    logger.info("Connected : ", socket.id);
+
+    socket.on("join-user-room", (token) => {
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+            socket.join(decoded.userID);
+
+            console.log("Socket joined room:", decoded.userID);
+        } catch (error) {
+            console.log("Invalid socket token");
+            socket.disconnect();
+        }
+    });
+    socket.on("disconnect", () => {
+        logger.info("Disconnected ", socket.id);
+    });
+});
 
 app.post("/api/user/signup", async (req, res) => {
     logger.info("POST /api/user/signup", {
@@ -381,6 +414,11 @@ app.post("/api/user/task/:id", async (req, res) => {
             const result = await pool.query("INSERT INTO task_sessions (user_id,task_id)  VALUES ($1,$2) RETURNING *", [decoded_payload.userID, taskId]);
             logger.info("Initialization of Session Done!");
 
+            io.to(decoded_payload.userID).emit("task-started", {
+                taskId,
+                session: result.rows[0]
+            });
+
             return res.json({
                 "message": result.rows
             });
@@ -391,6 +429,10 @@ app.post("/api/user/task/:id", async (req, res) => {
 
             await pool.query("UPDATE tasks SET is_active = false WHERE id = $1 RETURNING *", [taskId])
 
+            io.to(decoded_payload.userID).emit("task-stopped", {
+                taskId,
+                session: updatedTaskSession.rows[0]
+            });
             return res.json({
                 "messgae": "Updated Task Settings",
                 "isActivated": isTaskActive.rows[0].is_active,
@@ -550,6 +592,10 @@ app.get("/api/user/timeSinceStart", async (req, res) => {
     }
 });
 
-app.listen(3000, "0.0.0.0", () => {
+server.listen(3000, () => {
     logger.info("SERVER RUNNING ON http://localhost:3000");
 });
+
+// app.listen(3000, "0.0.0.0", () => {
+//     logger.info("SERVER RUNNING ON http://localhost:3000");
+// });
