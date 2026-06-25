@@ -7,4 +7,8 @@ export const userSignup = z.object({
 
 export const taskCreation = z.object({
     taskName: z.string().min(2)
-})
+});
+
+export const todoCreation = z.object({
+    todoName: z.string().min(2),
+});

@@ -1,6 +1,6 @@
 import express from "express";
 import logger from "./logger.js";
-import { taskCreation, userSignup } from "./validators/validators.js";
+import { taskCreation, todoCreation, userSignup } from "./validators/validators.js";
 import pool from "./neonDemo.js";
 import z, { json } from 'zod';
 import bcrypt from 'bcrypt';
@@ -590,6 +590,236 @@ app.get("/api/user/timeSinceStart", async (req, res) => {
             message: "Internal server error"
         });
     }
+});
+
+app.post("/api/user/todo", async (req, res) => {
+    logger.info("POST /api/user/todo");
+
+    try {
+        logger.info("Parsing the token");
+        const token = req.headers['authorization'].split(' ')[1];
+        logger.info("JWT Token parsed");
+
+        // Decoding the payload
+        const decoded_payload = jwt.verify(token, process.env.JWT_SECRET);
+
+        logger.info("Payload decoded Successfuly " + JSON.stringify(decoded_payload));
+
+        // Validate the user's todo
+        const validateData = todoCreation.parse(req.body);
+
+        logger.info("USER TODO CREATION DATA VALIDATION SUCCESSFUL", {
+            todoName: validateData.todoName,
+        });
+
+        // TODO: create a todo.
+
+        const result = await pool.query("INSERT INTO todos (name,user_id) VALUES ($1 , $2) RETURNING *", [validateData.todoName, decoded_payload.userID])
+
+        res.status(200).json({
+            "result": result.rows[0] || null
+        });
+
+    } catch (error) {
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({
+                message: "Token expired"
+            });
+        }
+
+        if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({
+                message: "Invalid token"
+            });
+        }
+
+        if (error.name === "NotBeforeError") {
+            return res.status(401).json({
+                message: "Token not active"
+            });
+        }
+
+        logger.error("Unknown error", {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
+
+        return res.status(500).json({
+            message: "Internal server error"
+        });
+    }
+
+});
+
+app.post("/api/user/todo/:id", async (req, res) => {
+    logger.info("POST /api/user/todo/:id");
+
+    try {
+        logger.info("Parsing the token");
+        const token = req.headers['authorization'].split(' ')[1];
+        logger.info("JWT Token parsed");
+
+        // Decoding the payload
+        const decoded_payload = jwt.verify(token, process.env.JWT_SECRET);
+
+        logger.info("Payload decoded Successfuly " + JSON.stringify(decoded_payload));
+        // TODO: create a todo.
+
+        const todoId = req.params.id;
+        // TODO: Need to check whether the user is deleting it's own task
+        const result = await pool.query("UPDATE todos SET completed_at = NOW() WHERE id = $1", [todoId])
+
+        res.status(200).json({
+            "result": result.rows[0] || null
+        });
+
+    } catch (error) {
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({
+                message: "Token expired"
+            });
+        }
+
+        if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({
+                message: "Invalid token"
+            });
+        }
+
+        if (error.name === "NotBeforeError") {
+            return res.status(401).json({
+                message: "Token not active"
+            });
+        }
+
+        logger.error("Unknown error", {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
+
+        return res.status(500).json({
+            message: "Internal server error"
+        });
+    }
+
+});
+
+app.post("/api/user/todo/extend/:id", async (req, res) => {
+    logger.info("POST /api/user/todo/extend/:id");
+
+    try {
+        logger.info("Parsing the token");
+        const token = req.headers['authorization'].split(' ')[1];
+        logger.info("JWT Token parsed");
+
+        // Decoding the payload
+        const decoded_payload = jwt.verify(token, process.env.JWT_SECRET);
+
+        logger.info("Payload decoded Successfuly " + JSON.stringify(decoded_payload));
+        // TODO: create a todo.
+
+        const todoId = req.params.id;
+
+        // TODO: Need to check whether the user is deleting it's own task
+        const result = await pool.query("UPDATE todos SET expires_at = expires_at + INTERVAL '24 hours' , extension_count = extension_count + 1 WHERE id = $1 AND user_id = $2 AND completed_at is NULL AND expired_at is NULL RETURNING *", [todoId, decoded_payload.userID]);
+
+        logger.info("User task postponed for 24 hours");
+
+        res.status(200).json({
+            "result": result.rows[0] || null
+        });
+
+    } catch (error) {
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({
+                message: "Token expired"
+            });
+        }
+
+        if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({
+                message: "Invalid token"
+            });
+        }
+
+        if (error.name === "NotBeforeError") {
+            return res.status(401).json({
+                message: "Token not active"
+            });
+        }
+
+        logger.error("Unknown error", {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
+
+        return res.status(500).json({
+            message: "Internal server error"
+        });
+    }
+
+});
+
+// TODO: DO CHECK THE SQL QUERY IT"S NOT COMPLETE
+app.get("/api/user/todo", async (req, res) => {
+    logger.info("POST /api/user/todo");
+
+    try {
+        logger.info("Parsing the token");
+        const token = req.headers['authorization'].split(' ')[1];
+        logger.info("JWT Token parsed");
+
+        // Decoding the payload
+        const decoded_payload = jwt.verify(token, process.env.JWT_SECRET);
+
+        logger.info("Payload decoded Successfuly " + JSON.stringify(decoded_payload));
+
+        // TODO: Expire the tasks which have passed the expires_on date.
+
+        const checkExpire = await pool.query("UPDATE todos SET expired_at = expires_at WHERE expired_at is NULL AND user_id = $1 AND ", [])
+
+        // TODO: Need to check whether the user is deleting it's own task
+        const result = await pool.query("UPDATE todos SET expires_at = expires_at + INTERVAL '24 hours' , extension_count = extension_count + 1 WHERE id = $1 AND user_id = $2 AND completed_at is NULL AND expired_at is NULL RETURNING *", [todoId, decoded_payload.userID]);
+
+        logger.info("User task postponed for 24 hours");
+
+        res.status(200).json({
+            "result": result.rows[0] || null
+        });
+
+    } catch (error) {
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({
+                message: "Token expired"
+            });
+        }
+
+        if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({
+                message: "Invalid token"
+            });
+        }
+
+        if (error.name === "NotBeforeError") {
+            return res.status(401).json({
+                message: "Token not active"
+            });
+        }
+
+        logger.error("Unknown error", {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
+
+        return res.status(500).json({
+            message: "Internal server error"
+        });
+    }
+
 });
 
 server.listen(3000, () => {
