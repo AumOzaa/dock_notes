@@ -2,10 +2,11 @@ import { Router } from "express";
 import { createTask, deleteTask, getTask, startEndTask, dayAnalytics, timeSinceStart } from "../controllers/task.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
 import app from "../app.js";
+import { apiLimiter } from "../middleware/rateLimiter.middleware.js";
 const router = Router();
 
 // TODO: REMOVE THE BASE PATH
-router.use(authMiddleware);
+router.use(authMiddleware, apiLimiter);
 router.post("/createtask", authMiddleware, createTask);
 router.delete("/del/task/:id", authMiddleware, deleteTask);
 router.get("/tasks", authMiddleware, getTask);
