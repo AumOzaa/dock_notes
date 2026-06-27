@@ -1,8 +1,10 @@
-import { taskCreation, userSignup } from "../validators/validators.js";
-
-import pool from "./neonDemo.js";
-import z from 'zod';
-import { authLimiter, othLimiter } from "../mwares.js";
+import { taskCreation } from "../validators/validators.js";
+import { getIO } from "../sockets/socket.js";
+import pool from "../config/db.js";
+// import pool from "./neonDemo.js";
+// import z from 'zod';
+// import { authLimiter, othLimiter } from "../mwares.js";
+import logger from "../utils/logger.js";
 
 export async function createTask(req, res) {
     logger.info("POST /api/user/createtask");
@@ -202,6 +204,7 @@ export async function startEndTask(req, res) {
         // });
         //
 
+        const io = getIO();
         if (isTaskActive.rows[0].is_active == false) {
             logger.info("Task Is Deactivated, initiating new session");
 

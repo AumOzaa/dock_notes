@@ -1,4 +1,7 @@
-import logger from "../logger.js";
+import logger from "../utils/logger.js";
+import pool from "../config/db.js";
+import { getIO } from "../sockets/socket.js";
+import { todoCreation } from "../validators/validators.js";
 
 export async function createTodo(req, res) {
     logger.info("POST /api/user/todo");
@@ -22,6 +25,7 @@ export async function createTodo(req, res) {
         });
 
         const result = await pool.query("INSERT INTO todos (name,user_id) VALUES ($1 , $2) RETURNING *", [validateData.todoName, userID]);
+        const io = getIO();
 
         io.to(userID).emit("todo-created", {
             todo: result.rows[0]
@@ -83,6 +87,7 @@ export async function completeTodo(req, res) {
             [todoId, userID]
         );
 
+        const io = getIO();
         if (result.rowCount === 0) {
             return res.status(404).json({
                 message: "Todo not found",
@@ -147,6 +152,7 @@ export async function extendTodo(req, res) {
         // TODO: Need to check whether the user is deleting it's own task
         const result = await pool.query("UPDATE todos SET expires_at = expires_at + INTERVAL '24 hours' , extension_count = extension_count + 1 WHERE id = $1 AND user_id = $2 AND completed_at is NULL AND expired_at is NULL RETURNING *", [todoId, userID]);
 
+        const io = getIO();
         io.to(userID).emit("todo-extended", {
             todo: result.rows[0]
         })
@@ -203,7 +209,7 @@ export async function getTodos(req, res) {
         // TODO: Expire the tasks which have passed the expires_on date.
 
         const checkExpire = await pool.query("UPDATE todos SET expired_at = NOW() WHERE user_id = $1 AND expired_at IS NULL AND completed_at IS NULL AND expires_at <= NOW() RETURNING *", [userID]);
-
+        const io = getIO();
         if (checkExpire.rowCount > 0) {
             logger.info("Removed the expired todos");
 
@@ -269,6 +275,7 @@ export async function deleteTodo(req, res) {
 
         // TODO: Need to check whether the user is deleting it's own task
         const result = await pool.query("DELETE FROM todos WHERE id = $1 AND user_id = $2 RETURNING *", [todoId, userID]);
+        const io = getIO();
 
         io.to(userID).emit("todo-deleted", {
             todoId

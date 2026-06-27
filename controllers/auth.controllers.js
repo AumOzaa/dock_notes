@@ -1,6 +1,11 @@
 import { userSignup } from "../validators/validators.js";
+import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
+import jwt from "jsonwebtoken";
+import pool from "../config/db.js";
+import logger from "../utils/logger.js";
 
-export async function signup(req, res) {
+export async function signup(req, res, next) {
     logger.info("POST /api/user/signup", {
         userName: req.body.username,
         password: req.body.password
