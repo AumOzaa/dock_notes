@@ -3,6 +3,7 @@ import { RedisStore } from "rate-limit-redis";
 import { createClient } from "redis";
 import logger from "./logger.js";
 
+// TODO: Need to change to .env
 const redisClient = createClient({ url: 'redis://localhost:6379' });
 
 redisClient.on("error", (err) => {
