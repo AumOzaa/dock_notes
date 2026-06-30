@@ -12,9 +12,10 @@ function createRedisStore(prefix) {
         sendCommand: (...args) => redisClient.sendCommand(args),
     });
 }
+// TODO: Change the max, changed to 100 for test
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 6,
+    max: 100,
     standardHeaders: true,
     legacyHeaders: false,
     store: createRedisStore("rl:auth:"),

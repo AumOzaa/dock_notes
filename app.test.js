@@ -1,27 +1,47 @@
 import request from "supertest";
-import { describe } from "zod";
 import app from "./app.js";
 import pool from "./config/db.js";
 import { redisClient } from "./config/redis.js";
+import logger from "./utils/logger.js";
+import { createTask } from "./controllers/task.controller.js";
+import { response } from "express";
 
-await request(app)
-    .post("/api/auth/signup")
-    .send({
-        username: "testUser",
-        password: "password123",
-    })
-    .expect(200);
+let authToken = 'bearer ';
+beforeAll(async () => {
+    await request(app)
+        .post("/api/auth/signup")
+        .send({
+            username: "testUser",
+            password: "password123",
+        });
 
-await request(app)
-    .post("/api/auth/signup")
-    .send({
-        username: "testUser",
-        password: "password123",
-    })
-    .expect(200);
+    const signinRes = await request(app)
+        .post("/api/auth/signin")
+        .send({
+            username: "testUser",
+            password: "password123",
+        });
 
+    authToken += signinRes.body.accessToken;
+    console.log(authToken);
+});
 
-test('ends everything :(', async () => {
+describe("Testing tasks creation", () => {
+    test("Task creation", async () => {
+        const taskInput = {
+            "taskName": "Test task"
+        };
+
+        const result = await request(app)
+            .post('/api/tasks/createtask')
+            .set('Authorization', authToken)
+            .send(taskInput);
+
+        expect(result.statusCode).toBe(200);
+    });
+});
+
+afterAll(async () => {
     await pool.end();
     await redisClient.quit();
 });

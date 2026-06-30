@@ -7,21 +7,9 @@ import pool from "../config/db.js";
 import logger from "../utils/logger.js";
 
 export async function createTask(req, res) {
-    logger.info("POST /api/user/createtask");
+    logger.info("POST /api/tasks/createtask");
 
-    // ask for jwt token.
     try {
-        // taking the JWT
-        // logger.info("Parsing the token");
-        // const token = req.headers['authorization'].split(' ')[1];
-        // logger.info("JWT Token parsed");
-        //
-        // // Decoding the payload
-        // const decoded_payload = jwt.verify(token, process.env.JWT_SECRET);
-        //
-        // logger.info("Payload decoded Successfuly " + JSON.stringify(decoded_payload));
-        //
-        // Now creating the task
         const validateData = taskCreation.parse(req.body);
         logger.info("User Data Validated Successfully", {
             "taksName": validateData.taskName,
@@ -33,19 +21,46 @@ export async function createTask(req, res) {
 
         logger.info("Task Created Successfully");
 
-        return res.json({
+        return res.status(200).json({
             "task": validateData.taskName,
             "taskId": response.rows[0].id,
             "message": "Task created succesfully"
         });
 
     } catch (error) {
-        logger.error("Something went wrong", {
-            "error": error.errors
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                message: "Validation error",
+                errors: error.issues
+            });
+        }
+
+        if (error.name === "TokenExpiredError") {
+            return res.status(401).json({
+                message: "Token expired"
+            });
+        }
+
+        if (error.name === "JsonWebTokenError") {
+            return res.status(401).json({
+                message: "Invalid token"
+            });
+        }
+
+        if (error.name === "NotBeforeError") {
+            return res.status(401).json({
+                message: "Token not active"
+            });
+        }
+
+        logger.error("Unknown error", {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
         });
 
-        return res.json({
-            "msg": "Something was wrong"
+        return res.status(500).json({
+            message: "Internal server error"
         });
     }
 }
